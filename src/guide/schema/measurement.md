@@ -233,12 +233,24 @@ Deleting a measurement will delete all data and indexes.
 DROP MEASUREMENT <measurement_name>
 ```
 
+This command also supports delete measurement in specific retention policy:
+
+```sql
+DROP MEASUREMENT <retention_policy_name>.<measurement_name>
+```
+
 ### Examples
 
 Delete the measurement `h2o_feet`
 
 ```sql
 > DROP MEASUREMENT "h2o_feet"
+```
+
+Delete the measurement `h2o_feet` in retention policy `rp0`
+
+```sql
+> DROP MEASUREMENT "rp0"."h2o_feet"
 ```
 
 ::: warning
