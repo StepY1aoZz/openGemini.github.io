@@ -36,7 +36,7 @@ Create a measurement named mst and specify to create a full-text index on the tw
 ```sql
 > CREATE MEASUREMENT mst WITH INDEXTYPE text INDEXLIST description, error_message SHARDKEY location
 ```
- 
+
 Create a measurement named mst, and specify to create a full-text index on the ```description``` and ```error_message``` fields, and set ```location``` as partition key
 ::: tip
 
@@ -137,7 +137,7 @@ The database `NOAA_water_database` has five measurements: `average_temperature`,
 
 use command `USE <database_name>` specified database：
 
-```bash
+```sql
 > USE NOAA_water_database
 Elapsed: 781ns
 > SHOW MEASUREMENTS
@@ -254,6 +254,3 @@ Delete the measurement `h2o_feet` in retention policy `rp0`
 There has no results return when the command 'DROP MEASUREMENT' excute success.
 
 :::
-
-## ALTER MEASUREMENT
-##TODO

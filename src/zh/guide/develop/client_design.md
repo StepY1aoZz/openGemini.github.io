@@ -28,8 +28,8 @@ classDiagram
         + timeout
         + connectTimeout
         + bool gzipEnabled
-        + bool tlsEnabled
-        + TlsConfig tlsConfig // language specific
+        + enum codec
+        + TlsConfig tlsConfig // nullable, language specific
         + void close()
     }
 
@@ -39,7 +39,7 @@ classDiagram
     }
 
     class AuthConfig {
-        + AuthType authType // enum None, Password, Token
+        + AuthType authType // enum Password, Token. The server currently does not support the Token type, and the SDK implementation for Token is incomplete.
         + String username
         + String password
         + String token
@@ -64,19 +64,83 @@ classDiagram
         + void CreateDatabaseWithRp(String database, rpConfig RpConfig)
         + String[] ShowDatabases()
         + void DropDatabase(String database)
-        + void CreateRetentionPolicy(database string, rpConfig RpConfig, isDefault bool)
-        + RetentionPolicy[] ShowRetentionPolicies(database string)
-        + void DropRetentionPolicy(database, retentionPolicy string)
+        + void CreateRetentionPolicy(String database, RpConfig rpConfig, bool isDefault)
+        + void UpdateRetentionPolicy(String database, RpConfig rpConfig, bool isDefault)
+        + RetentionPolicy[] ShowRetentionPolicies(String database)
+        + void DropRetentionPolicy(String database, String retentionPolicy)
+        + void CreateMeasurement(CreateMeasurementBuilder builder)
+        + String[] ShowMeasurements(ShowMeasurementBuilder builder)
+        + void DropMeasurement(String database, String retentionPolicy, String measurement)
+        + Map[String]String[] ShowTagKeys(ShowTagKeysBuilder builder)
+        + String[] ShowTagValues(ShowTagValuesBuilder builder)
+        + Map[String]Map[String]String ShowFieldKeys(String database, Option<String> measurement)
+        + String[] ShowSeries(ShowSeriesBuilder builder)
     }
     class RpConfig {
-        + String Name
-        + String Duration
-        + String ShardGroupDuration
-        + String IndexDuration
+        + String Name // non-null
+        + String Duration // non-null
+        + String ShardGroupDuration // nullable
+        + String IndexDuration // nullable
+    }
+    class CreateMeasurementBuilder {
+        + CreateMeasurementBuilder Tags(String[] tags)
+        + CreateMeasurementBuilder FieldMap(map[String]FieldType fields)
+        + CreateMeasurementBuilder ShardType(ShardType shardType)
+        + CreateMeasurementBuilder ShardKeys(String[] shardKeys)
+        + CreateMeasurementBuilder FullTextIndex()
+        + CreateMeasurementBuilder IndexList(String[] indexes)
+        + CreateMeasurementBuilder EngineType(EngineType engineType)
+        + CreateMeasurementBuilder PrimaryKey(String[] primaryKeys)
+        + CreateMeasurementBuilder SortKeys(String[] sortKeys)
+        + String build()
+    }
+    class ShowMeasurementBuilder {
+        + ShowMeasurementBuilder Filter(ComparisonOperator operator, String regex)
+        + String build()
+    }
+    class FieldType {
+        <<enum>>
+        Bool  // BOOL
+        Int64  // INT64
+        Float64 // FLOAT64
+        String // STRING
+    }
+    class ShardType {
+        <<enum>>
+        Hash // HASH
+        Range // RANGE
+    }
+    class EngineType {
+        <<enum>>
+        ColumnStore // columnstore
+    }
+    class ShowTagKeysBuilder {
+        ShowTagKeysBuilder Database(String database)
+        ShowTagKeysBuilder Measurement(String measurement)
+        ShowTagKeysBuilder RetentionPolicy(String rp)
+        ShowTagKeysBuilder Limit(int limit)
+        ShowTagKeysBuilder Offset(int offset)
+    }
+    class ShowTagValuesBuilder {
+        ShowTagValuesBuilder Database(String database)
+        ShowTagValuesBuilder Measurement(String measurement)
+        ShowTagValuesBuilder RetentionPolicy(String rp)
+        ShowTagValuesBuilder Limit(int limit)
+        ShowTagValuesBuilder Offset(int offset)
+        ShowTagValuesBuilder With(String[] keys)
+        ShowTagValuesBuilder Where(String key, ComparisonOperator operator, String value)
+    }
+    class ShowSeriesBuilder {
+        ShowSeriesBuilder Database(String database)
+        ShowSeriesBuilder Measurement(String measurement)
+        ShowSeriesBuilder RetentionPolicy(String rp)
+        ShowSeriesBuilder Limit(int limit)
+        ShowSeriesBuilder Offset(int offset)
+        ShowTagValuesBuilder Where(String key, ComparisonOperator operator, String value)
     }
 ```
 
-# Write point design
+# 写入点位设计
 
 ```mermaid
 classDiagram
@@ -141,7 +205,115 @@ classDiagram
     SeriesResult "1" *-- "0..*" Series: contains
 ```
 
-# Ping设计
+# 查询构造器设计
+
+```mermaid
+classDiagram
+    class QueryBuilder {
+        + static Create() QueryBuilder
+        + Select(Expression[] selectExprs) QueryBuilder
+        + From(String[] from) QueryBuilder
+        + Where(Condition where) QueryBuilder
+        + GroupBy(Expression[] groupByExpressions) QueryBuilder
+        + OrderBy(order: SortOrder) QueryBuilder
+        + Limit(limit: int64) QueryBuilder
+        + Offset(offset: int64) QueryBuilder
+        + Timezone(timezone: *time.Location) QueryBuilder
+        + Build() Query
+    }
+
+    class Expression {
+        <<interface>>
+    }
+
+    class ConstantExpression {
+        - Object value
+    }
+
+    class StarExpression {
+    }
+
+    class FunctionExpression {
+        - FunctionEnum function
+        - Expression[] arguments
+    }
+    
+    class AsExpression {
+        - String alias
+        - Expression expression
+    }
+
+    class ArithmeticExpression {
+        - Expression Left
+        - Expression Right
+        - Operator   ArithmeticOperator
+    }
+
+    class Condition {
+        <<interface>>
+    }
+
+    class ComparisonCondition {
+        - String column
+        - ComparisonOperator operator
+        - Object value
+    }
+
+    class CompositeCondition {
+        - LogicalOperator logicalOperator
+        - Condition[] conditions
+    }
+
+    class SortOrder {
+        <<enum>>
+        Asc
+        Desc
+    }
+
+    class ComparisonOperator {
+        <<enum>>
+        Equals
+        NotEquals
+        GreaterThan
+        LessThan
+        GreaterThanOrEquals
+        LessThanOrEquals
+    }
+
+    class LogicalOperator {
+        <<enum>>
+        And
+        Or
+    }
+
+    class FunctionEnum {
+        <<enum>>
+        Mean
+        Count
+        Sum
+        Min
+        Max
+        Time
+    }
+
+    Expression <|-- FieldExpression
+    Expression <|-- StarExpression
+    Expression <|-- ConstantExpression
+    Expression <|-- FunctionExpression
+    Expression <|-- AsExpression
+    Expression <|-- ArithmeticExpression
+    FunctionExpression --> FunctionEnum
+    Condition <|-- ComparisonCondition
+    Condition <|-- CompositeCondition
+    ComparisonCondition --> ComparisonOperator
+    CompositeCondition --> LogicalOperator
+    QueryBuilder --> Expression
+    QueryBuilder --> Condition
+    QueryBuilder --> SortOrder
+    QueryBuilder --> Query
+```
+
+# Ping 设计
 
 ```mermaid
 classDiagram

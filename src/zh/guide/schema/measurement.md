@@ -268,17 +268,23 @@ TODO
 ### 语法
 
 ```sql
-DROP MEASUREMENT <measurement_name>
+DROP MEASUREMENT <retention_policy_name>.<measurement_name>
 ```
 
 **<font size=5 color=green>示例</font>**
 
 ---
 
-删除名称为`h2o_feet`的measurement
+删除默认retention policy下面名称为`h2o_feet`的measurement
 
 ```sql
 > DROP MEASUREMENT "h2o_feet"
+```
+
+删除指定retention policy `rp0`下面名称为`h2o_feet`的measurement
+
+```sql
+> DROP MEASUREMENT "rp0"."h2o_feet"
 ```
 
 ::: warning
